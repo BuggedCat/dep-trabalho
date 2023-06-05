@@ -24,7 +24,6 @@ df: DataFrame = (
     .option("header", "true")
     .option("delimiter", ";")
     .option("inferSchema", "true")
-    .option("encoding", "utf-8")
     .load(BRONZE_DATA_URI)
 )
 
