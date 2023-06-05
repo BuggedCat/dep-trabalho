@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  common_settings: &common-settings
+    build:
+      context: spark
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    environment:
+      - MASTER=spark://master:7077
+    volumes:
+      - ./data:/opt/spark/data/
+
+  master:
+    <<: *common-settings
+    entrypoint: ["/bin/bash", "-c", "/opt/spark/entrypoint.sh"]
+    ports:
+      - "4040:4040"
+      - "8080:8080"
+      - "7077:7077"
+      - "15002:15002"
+    container_name: master
+
+  worker-1:
+    <<: *common-settings
+    command: /opt/spark/sbin/start-worker.sh spark://master:7077 --cores 3 --memory 4g
+    depends_on:
+      - master
+    ports:
+      - "18081:8081"
+
+  worker-2:
+    <<: *common-settings
+    command: /opt/spark/sbin/start-worker.sh spark://master:7077 --cores 3 --memory 4g
+    depends_on:
+      - master
+    ports:
+      - "18082:8081"
+
+  minio:
+    build: 
+      context: minio
+      dockerfile: Dockerfile
+    container_name: minio-local
+    volumes:
+      - minio-data:/data
+    env_file:
+      - .env
+    environment:
+      MINIO_ROOT_USER: ${AWS_ACCESS_KEY_ID}
+      MINIO_ROOT_PASSWORD: ${AWS_SECRET_ACCESS_KEY}
+    # command: minio server /data --console-address ":9090"
+    ports:
+      - "9000:9000"
+      - "9090:9090"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+volumes:
+  minio-data:
